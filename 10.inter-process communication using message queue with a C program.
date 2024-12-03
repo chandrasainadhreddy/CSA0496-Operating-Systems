@@ -1,0 +1,29 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
+
+#define SHM_SIZE 1024  // Size of shared memory
+
+int main() {
+    key_t key = ftok("shmfile", 65);  // Generate a unique key
+    int shmid = shmget(key, SHM_SIZE, 0666 | IPC_CREAT);  // Create shared memory
+
+    if (fork() == 0) { 
+        // Child Process: Writer
+        char *shared_mem = (char *)shmat(shmid, NULL, 0);  // Attach to shared memory
+        printf("Child: Writing to shared memory...\n");
+        strncpy(shared_mem, "Hello from child!", SHM_SIZE);  // Write data
+        shmdt(shared_mem);  // Detach
+    } else { 
+        // Parent Process: Reader
+        wait(NULL);  // Wait for child to finish
+        char *shared_mem = (char *)shmat(shmid, NULL, 0);  // Attach to shared memory
+        printf("Parent: Reading from shared memory: %s\n", shared_mem);
+        shmdt(shared_mem);  // Detach
+        shmctl(shmid, IPC_RMID, NULL);  // Destroy shared memory
+    }
+    return 0;
+}
